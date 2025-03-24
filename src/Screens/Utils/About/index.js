@@ -1,7 +1,7 @@
 import React, { useContext } from 'react'
 import { Linking } from 'react-native';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
-import UserAvatar from 'react-native-user-avatar';
+import UserAvatar from '../../../components/UserAvatar';
 import PropTypes from "prop-types";
 
 import { LocaleContext} from '../../../components/locale';

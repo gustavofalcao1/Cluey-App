@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect, useCallback } from "react";
 import { Alert, TouchableWithoutFeedback, Keyboard } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import UserAvatar from "react-native-user-avatar";
+import UserAvatar from "../../../components/UserAvatar";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect } from "@react-navigation/native";
 import PropTypes from "prop-types";

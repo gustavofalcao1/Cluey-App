@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import PropTypes from "prop-types";
+import { updateProfile, updateEmail, updatePassword, reauthenticateWithCredential, sendEmailVerification, onAuthStateChanged } from 'firebase/auth';
 
 import { auth, emailProvider } from '../config';
 import { LocaleContext } from '../../../components/locale';
@@ -13,19 +14,19 @@ export const UserProvider = ({ children }) => {
   const [isVerify, setIsVerify] = useState(false);
   
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(user => {
+    const unsubscribe = onAuthStateChanged(auth, user => {
       setAuthUser(user);
       user?setIsAuth(true):setIsAuth(false);
       user?.emailVerified?setIsVerify(true):setIsVerify(false);
     });
 
-    return () =>  unsubscribe
+    return () => unsubscribe
   }, [auth]);
 
   
 
   const updateUserName = async (displayName) => {
-    return await auth.currentUser.updateProfile({
+    return await updateProfile(auth.currentUser, {
       displayName: displayName
     });
   };
@@ -35,9 +36,9 @@ export const UserProvider = ({ children }) => {
       authUser.email,
       password
     );
-    await auth.currentUser.reauthenticateWithCredential(credential);
-    await auth.currentUser.updateEmail(newEmail);
-    await auth.currentUser.sendEmailVerification({
+    await reauthenticateWithCredential(auth.currentUser, credential);
+    await updateEmail(auth.currentUser, newEmail);
+    await sendEmailVerification(auth.currentUser, {
       locale: locale.language.locale
     });
   };
@@ -47,8 +48,8 @@ export const UserProvider = ({ children }) => {
       authUser.email,
       currentPassword
     );
-    await authUser.reauthenticateWithCredential(credential);
-    await authUser.updatePassword(newPassword);
+    await reauthenticateWithCredential(auth.currentUser, credential);
+    await updatePassword(auth.currentUser, newPassword);
   };
   
   const value = {

@@ -1,6 +1,6 @@
 import React from "react";
 import { StyleSheet } from "react-native";
-import UserAvatar from "react-native-user-avatar";
+import UserAvatar from "../../../../components/UserAvatar";
 import PropTypes from "prop-types";
 
 import {

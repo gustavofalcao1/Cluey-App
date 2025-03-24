@@ -9,8 +9,8 @@ export const ProvidersContext = createContext();
 export const ProvidersProvider = ({ children }) => {
   const notNew = async () => {AsyncStorage.setItem('isNewUser', 'false')};
   const [userInfo, setUserInfo] = useState(null);
-  const GOOGLE_ID = Constants.manifest.extra.google.webClientId;
-  const REDIRECT_URI = Constants.manifest.extra.google.redirectUri;
+  const GOOGLE_ID = Constants.expoConfig.extra.google.webClientId;
+  const REDIRECT_URI = Constants.expoConfig.extra.google.redirectUri;
   const RESPONSE_TYPE = "token";
   const SCOPE = encodeURI("profile email");
   
@@ -27,6 +27,8 @@ export const ProvidersProvider = ({ children }) => {
         name,
         picture,
       };
+      setUserInfo(user);
+      await notNew(); // Mark user as not new after successful sign-in
       console.log(`Olá, ${user.name}!\nSeu email é ${user.email}.\nSua foto de perfil é ${user.picture}.`);
     }
   };

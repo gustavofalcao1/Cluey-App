@@ -1,7 +1,8 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import PropTypes from "prop-types";
 
-import { firestore, storage, arrayUnion } from '../config';
+import { auth, firestore, storage, arrayUnion, collection, doc, setDoc, updateDoc, getDoc, getDocs, query, where, orderBy, deleteDoc, onSnapshot, addDoc, ref, uploadBytes, getDownloadURL } from '../config';
+import { updateProfile } from 'firebase/auth';
 import { sendMessageToOpenAI } from '../../openai';
 import { UserContext } from '../user';
 export const FirestoreContext = createContext();
@@ -17,27 +18,28 @@ export const FirestoreProvider = ({ children }) => {
 
   useEffect(() => {
     if (isAuth) {
-      const getApp = firestore.collection('app').doc('info')
-      .onSnapshot((doc) => {
-        if (doc.exists) {
-          const data = doc.data();
+      const appDocRef = doc(firestore, 'app', 'info');
+      const getApp = onSnapshot(appDocRef, (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          const data = docSnapshot.data();
           setApp(data);
         }
       });
 
-      const getUser = firestore.collection('users').doc(authUser?.uid)
-      .onSnapshot((doc) => {
-        if (doc.exists) {
-          const data = doc.data();
+      const userDocRef = doc(firestore, 'users', authUser?.uid);
+      const getUser = onSnapshot(userDocRef, (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          const data = docSnapshot.data();
           setUser(data);
         } 
       });
        
-      const getChats = firestore.collection('users').doc(authUser?.uid).collection('cluey')
-      .orderBy('updatedAt', 'desc').onSnapshot((querySnapshot) => {
-          const data = querySnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
+      const chatsCollectionRef = collection(firestore, 'users', authUser?.uid, 'cluey');
+      const chatsQuery = query(chatsCollectionRef, orderBy('updatedAt', 'desc'));
+      const getChats = onSnapshot(chatsQuery, (querySnapshot) => {
+          const data = querySnapshot.docs.map(docSnapshot => ({
+            id: docSnapshot.id,
+            ...docSnapshot.data(),
           }));
           setChats(data);
       });
@@ -46,8 +48,8 @@ export const FirestoreProvider = ({ children }) => {
         const timestamp = Date().toLocaleString();
         const name = authUser?.email.split("@")[0];
     
-        const docRef = firestore.collection('users').doc(authUser?.uid);
-        return await docRef.set({
+        const docRef = doc(firestore, 'users', authUser?.uid);
+        return await setDoc(docRef, {
           uid: authUser?.uid,
           createdAt: timestamp,
           updatedAt: timestamp,
@@ -74,12 +76,12 @@ export const FirestoreProvider = ({ children }) => {
     const response = await fetch(uri);
     const blob = await response.blob();
 
-    const ref = storage.ref().child(`public/${authUser?.uid}/photoURL.jpg`);
-    const snapshot = await ref.put(blob);
+    const storageRef = ref(storage, `public/${authUser?.uid}/photoURL.jpg`);
+    const snapshot = await uploadBytes(storageRef, blob);
 
-    const photoURL = await snapshot.getDownloadURL();
+    const photoURL = await getDownloadURL(snapshot.ref);
 
-    return await authUser.currentUser.updateProfile({
+    return await updateProfile(auth.currentUser, {
       photoURL: photoURL
     });
   };
@@ -87,8 +89,8 @@ export const FirestoreProvider = ({ children }) => {
   const putPreferences = async (focusItens, interestsItens) => {
     const timestamp = Date().toLocaleString();
 
-    const docRef = firestore.collection('users').doc(authUser?.uid);
-    return await docRef.set({
+    const docRef = doc(firestore, 'users', authUser?.uid);
+    return await setDoc(docRef, {
       preferences: {
         focus: focusItens,
         interests: interestsItens,
@@ -99,13 +101,13 @@ export const FirestoreProvider = ({ children }) => {
 
   const getContacts = async () => {
     if (user?.contacts?.length > 0) {
-    const querySnapshot = await firestore.collection('users')
-      .where('profile.email', 'in', user?.contacts)
-      .get();
+    const usersCollectionRef = collection(firestore, 'users');
+    const q = query(usersCollectionRef, where('profile.email', 'in', user?.contacts));
+    const querySnapshot = await getDocs(q);
   
-    const contactsData = querySnapshot.docs.map((doc) => {
-      const data = doc.data();
-      return { ...data, id: doc.id };
+    const contactsData = querySnapshot.docs.map((docSnapshot) => {
+      const data = docSnapshot.data();
+      return { ...data, id: docSnapshot.id };
     });
   
      setContacts(contactsData);
@@ -115,8 +117,8 @@ export const FirestoreProvider = ({ children }) => {
   const putContact = async (contact) => {
     const timestamp = Date().toLocaleString();
 
-    const docRef = firestore.collection('users').doc(authUser?.uid);
-    return await docRef.update({
+    const docRef = doc(firestore, 'users', authUser?.uid);
+    return await updateDoc(docRef, {
       contacts: arrayUnion(contact),
       updatedAt: timestamp,
     })
@@ -125,8 +127,8 @@ export const FirestoreProvider = ({ children }) => {
   const putCountry = async (iso, name) => {
     const timestamp = Date().toLocaleString();
 
-    const docRef = firestore.collection('users').doc(authUser?.uid);
-    return await docRef.set({
+    const docRef = doc(firestore, 'users', authUser?.uid);
+    return await setDoc(docRef, {
       country: {
         iso: iso,
         name: name,
@@ -144,7 +146,8 @@ export const FirestoreProvider = ({ children }) => {
       updatedAt: timestamp,
       messages: [],
     };
-    return await firestore.collection('users').doc(authUser?.uid).collection('cluey').add(chat);
+    const clueyCollectionRef = collection(firestore, 'users', authUser?.uid, 'cluey');
+    return await addDoc(clueyCollectionRef, chat);
   };
 
   const createUserMessage = async (chatId, text) => {
@@ -157,14 +160,11 @@ export const FirestoreProvider = ({ children }) => {
       createdAt: timestamp,
       text: text,
     };
-    await firestore.collection('users').doc(authUser?.uid).collection('cluey').doc(chatId).set(chat, { merge: true })
-      .then(() => {
-        firestore.collection('users').doc(authUser?.uid).collection('cluey').doc(chatId)
-        .update({
-          messages: arrayUnion(message),
-        });
-      }
-    );
+    const chatDocRef = doc(firestore, 'users', authUser?.uid, 'cluey', chatId);
+    await setDoc(chatDocRef, chat, { merge: true });
+    await updateDoc(chatDocRef, {
+      messages: arrayUnion(message),
+    });
   };
 
   const createAiMessage = async (chatId, text) => {
@@ -178,45 +178,42 @@ export const FirestoreProvider = ({ children }) => {
       createdAt: timestamp,
       text: response,
     };
-    await firestore.collection('users').doc(authUser?.uid).collection('cluey').doc(chatId).set(chat, { merge: true })
-      .then(() => {
-        firestore.collection('users').doc(authUser?.uid).collection('cluey').doc(chatId)
-        .update({
-          messages: arrayUnion(message),
-        });
-      }
-    );
+    const chatDocRef = doc(firestore, 'users', authUser?.uid, 'cluey', chatId);
+    await setDoc(chatDocRef, chat, { merge: true });
+    await updateDoc(chatDocRef, {
+      messages: arrayUnion(message),
+    });
   };
 
   const editChat = async (chatId, newName) => {
     const timestamp = Date().toLocaleString();
-    const docRef = firestore.collection('users').doc(authUser?.uid).collection('cluey').doc(chatId);
-    return await docRef.update({name: newName, updatedAt: timestamp});
+    const docRef = doc(firestore, 'users', authUser?.uid, 'cluey', chatId);
+    return await updateDoc(docRef, {name: newName, updatedAt: timestamp});
   };
 
   const deleteChat = async (chatId) => {
-    const docRef = firestore.collection('users').doc(authUser?.uid).collection('cluey').doc(chatId);
-    return await docRef.delete();
+    const docRef = doc(firestore, 'users', authUser?.uid, 'cluey', chatId);
+    return await deleteDoc(docRef);
   };
 
   const getTalks = async () => {
     if (user?.contacts?.length > 0) {
-      const talksCollection = await firestore.collection('talks')
-        .where('emailFriend', 'in', user?.contacts)
-        .get();
+      const talksCollectionRef = collection(firestore, 'talks');
+      const talksQuery = query(talksCollectionRef, where('emailFriend', 'in', user?.contacts));
+      const talksSnapshot = await getDocs(talksQuery);
     
-      const talks = talksCollection.docs.map((doc) => {
-        const data = doc.data();
-        return { ...data, id: doc.id };
+      const talks = talksSnapshot.docs.map((docSnapshot) => {
+        const data = docSnapshot.data();
+        return { ...data, id: docSnapshot.id };
       });
 
-      const usersCollection = await firestore.collection('users')
-        .where('profile.email', 'in', user?.contacts)
-        .get();
+      const usersCollectionRef = collection(firestore, 'users');
+      const usersQuery = query(usersCollectionRef, where('profile.email', 'in', user?.contacts));
+      const usersSnapshot = await getDocs(usersQuery);
     
-      const users = usersCollection.docs.map((doc) => {
-        const data = doc.data();
-        return { ...data, id: doc.id };
+      const users = usersSnapshot.docs.map((docSnapshot) => {
+        const data = docSnapshot.data();
+        return { ...data, id: docSnapshot.id };
       });
 
       const combinedData = talks.map((talk) => {
@@ -237,24 +234,27 @@ export const FirestoreProvider = ({ children }) => {
       updatedAt: timestamp,
       messages: [],
     };
-    const chatRef = firestore.collection('talks')
-    const talk = await chatRef
-      .where('emailFriend', '==', email)
-      .where('emailUser', '==', authUser?.email)
-      .get();
-    if (talk.docs.length === 0) {
-      const newTalkRef = await chatRef.add(chat);
+    const talksCollectionRef = collection(firestore, 'talks');
+    const talksQuery = query(
+      talksCollectionRef,
+      where('emailFriend', '==', email),
+      where('emailUser', '==', authUser?.email)
+    );
+    const talkSnapshot = await getDocs(talksQuery);
+    
+    if (talkSnapshot.empty) {
+      const newTalkRef = await addDoc(talksCollectionRef, chat);
       return newTalkRef.id;
     } else {
-      return talk.docs[0].id;
+      return talkSnapshot.docs[0].id;
     }
   };
 
   const getWhisps = async (id) => {
     try {
-      const docRef = firestore.collection('talks').doc(id);
-      const docSnapshot = await docRef.get();
-      if (docSnapshot.exists) {
+      const docRef = doc(firestore, 'talks', id);
+      const docSnapshot = await getDoc(docRef);
+      if (docSnapshot.exists()) {
         const data = docSnapshot.data();
         setWhisps(data);
       }
@@ -273,14 +273,11 @@ export const FirestoreProvider = ({ children }) => {
       createdAt: timestamp,
       text: text,
     };
-    await firestore.collection('talks').doc(talkId).set(talk, { merge: true })
-      .then(() => {
-        firestore.collection('talks').doc(talkId)
-        .update({
-          messages: arrayUnion(message),
-        });
-      }
-    );
+    const talkDocRef = doc(firestore, 'talks', talkId);
+    await setDoc(talkDocRef, talk, { merge: true });
+    await updateDoc(talkDocRef, {
+      messages: arrayUnion(message),
+    });
   };
   
 

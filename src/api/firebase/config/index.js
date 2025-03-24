@@ -1,34 +1,55 @@
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/auth';
-import 'firebase/compat/storage';
-import 'firebase/compat/firestore';
-
+import { initializeApp } from 'firebase/app';
+import { initializeAuth, EmailAuthProvider, GoogleAuthProvider, FacebookAuthProvider, GithubAuthProvider } from 'firebase/auth';
+import { getFirestore, arrayUnion, collection, doc, setDoc, updateDoc, getDoc, getDocs, query, where, orderBy, deleteDoc, onSnapshot, addDoc } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {initializeAuth} from 'firebase/auth';
-import {getReactNativePersistence} from 'firebase/auth/react-native';
+import { getReactNativePersistence } from 'firebase/auth/react-native';
 import Constants from 'expo-constants';
 
 const firebaseConfig = {
-  apiKey: Constants.manifest.extra.firebase.apiKey,
-  authDomain: Constants.manifest.extra.firebase.authDomain,
-  projectId: Constants.manifest.extra.firebase.projectId,
-  storageBucket: Constants.manifest.extra.firebase.storageBucket,
-  messagingSenderId: Constants.manifest.extra.firebase.messagingSenderId,
-  appId: Constants.manifest.extra.firebase.appId,
-  measurementId: Constants.manifest.extra.firebase.measurementId
+  apiKey: Constants.expoConfig.extra.firebase.apiKey,
+  authDomain: Constants.expoConfig.extra.firebase.authDomain,
+  projectId: Constants.expoConfig.extra.firebase.projectId,
+  storageBucket: Constants.expoConfig.extra.firebase.storageBucket,
+  messagingSenderId: Constants.expoConfig.extra.firebase.messagingSenderId,
+  appId: Constants.expoConfig.extra.firebase.appId,
+  measurementId: Constants.expoConfig.extra.firebase.measurementId
 };
 
-const fireApp = firebase.initializeApp(firebaseConfig);
+const fireApp = initializeApp(firebaseConfig);
 
-initializeAuth(fireApp, {
+// Inicializar autenticação com persistência
+const auth = initializeAuth(fireApp, {
   persistence: getReactNativePersistence(AsyncStorage),
 });
 
-export const auth = firebase.auth();
-export const firestore = firebase.firestore();
-export const arrayUnion = firebase.firestore.FieldValue.arrayUnion;
-export const storage = firebase.storage();
-export const emailProvider = new firebase.auth.EmailAuthProvider();
-export const googleProvider = new firebase.auth.GoogleAuthProvider();
-export const facebookProvider = new firebase.auth.FacebookAuthProvider();
-export const githubProvider = new firebase.auth.GithubAuthProvider();
+// Inicializar outros serviços
+const firestore = getFirestore(fireApp);
+const storage = getStorage(fireApp);
+
+// Exportar serviços e provedores
+export { 
+  auth, 
+  firestore, 
+  storage, 
+  arrayUnion, 
+  collection, 
+  doc, 
+  setDoc, 
+  updateDoc, 
+  getDoc, 
+  getDocs, 
+  query, 
+  where, 
+  orderBy, 
+  deleteDoc, 
+  onSnapshot,
+  addDoc,
+  ref,
+  uploadBytes,
+  getDownloadURL
+};
+export const emailProvider = EmailAuthProvider;
+export const googleProvider = GoogleAuthProvider;
+export const facebookProvider = FacebookAuthProvider;
+export const githubProvider = GithubAuthProvider;

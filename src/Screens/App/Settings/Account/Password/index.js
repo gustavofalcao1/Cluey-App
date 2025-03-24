@@ -1,7 +1,7 @@
 import React, { useState, useContext, useRef } from "react";
 import { TouchableWithoutFeedback, Keyboard, StyleSheet, Alert } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import UserAvatar from "react-native-user-avatar";
+import UserAvatar from "../../../../../components/UserAvatar";
 import PropTypes from "prop-types";
 
 import { UserContext, FirestoreContext } from "../../../../../api/firebase";
