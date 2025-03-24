@@ -1,6 +1,6 @@
 {
   "name": "cluey",
-  "version": "0.0.1",
+  "version": "0.0.19",
   "scripts": {
     "start": "expo start",
     "dev": "expo start --dev-client",
@@ -13,6 +13,9 @@
     "ios": "expo run:ios",
     "ios-build-dev-run": "eas build:run -p ios --latest",
     "web": "expo start --web"
+  },
+  "eng": {
+    "node": "16.20.2"
   },
   "dependencies": {
     "@eslint/create-config": "0.4.3",
